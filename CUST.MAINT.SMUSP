@@ -1,0 +1,522 @@
+      SUBROUTINE CUST.MAINT.SMUSP (APP.MODE, CUST.CODE, SPARE3, SPARE2, SPARE1)
+      PROGRAM.NAME = "CUST.MAINT.SMUSP"
+
+*********************************************************************
+* Description
+* Allow maintenance and enquiry of customer details
+*********************************************************************
+*
+* Author       : Sophie Muspratt
+* Date Written : 12/08/2016
+*
+*  Job #     Date   Inits Comments
+* ======== ======== ===== ========
+* tttttrnn DD/MM/YY USRID Original Version
+*
+*********************************************************************
+
+      INCLUDE DG-INCLUDES TCSTANDARD
+      INCLUDE INCLUDES MN.TERMWORK.COMMON
+
+***********
+* EQUATES *
+***********
+
+      EQU TRUE TO 1
+      EQU FALSE TO 0
+      EQU NULL TO ""
+      EQU DLIM TO '*'
+      EQU EOL TO CLEOL
+      EQU EOS TO CLEOS
+
+************
+* INCLUDES *
+************
+
+      INCLUDE INCLUDES EQU.TERMWORK
+      INCLUDE INCLUDES EQU.CUST.DETAIL.SMUSP.DIM
+      INCLUDE INCLUDES EQU.REP.DETAIL.SMUSP.DIM
+      INCLUDE INCLUDES EQU.REP.XREF.SMUSP.DIM
+
+**************
+* FILE OPENS *
+**************
+
+      ACCOUNT.NAME = OCONV(@WHO,'MCU')
+      ERR = ''
+
+      INCLUDE INCLUDES OPEN.FILE.TERMWORK
+      INCLUDE INCLUDES OPEN.FILE.SY.PARAMS
+      INCLUDE INCLUDES OPEN.FILE.SCREENS
+      INCLUDE INCLUDES OPEN.FILE.TRAIN.PARAMS
+      INCLUDE INCLUDES OPEN.FILE.CUST.DETAIL.SMUSP
+      INCLUDE INCLUDES OPEN.FILE.REP.DETAIL.SMUSP
+      INCLUDE INCLUDES OPEN.FILE.REP.XREF.SMUSP
+
+      IF ERR NE '' THEN
+         FATAL.ERROR.MSG = "CANNOT OPEN FILES ":ERR
+         GOSUB FATAL.ERROR
+      END
+
+      GOSUB MAIN.PROG
+
+*********************************************************************
+*********
+PROG.END:
+*********
+
+***BEWARE - this should be RETURN in a subroutine !!!!!!
+
+      STOP
+
+*********************************************************************
+**********
+MAIN.PROG:
+**********
+
+      CRT CURSOR.OFF:
+      GOSUB INITIALISATION
+      GOSUB READ.AND.DISPLAY.SCREEN
+      LOOP
+         GOSUB CLEAR.SCREEN
+         CUSTOMER.CODE = ''
+         GOSUB SET.UP.SELECTION.LINE
+         GOSUB GET.INPUTS
+
+         IF NOT(GET.OUT) THEN
+*           Use selection bar to offer the following options:-
+*           1) Amend a line (CALL ???.LINE)
+*           2)
+            GOSUB DO.LINE.SELECTION.AND.ACTION
+         END
+      UNTIL GET.OUT DO
+      REPEAT
+
+      CRT CURSOR.ON:
+
+      RETURN
+
+*********************************************************************
+***************
+INITIALISATION:
+***************
+
+      EXT.TODAY = OCONV(DATE(),'D4/')
+
+      INCLUDE INCLUDES BUILD.TOP.RIGHT   ; * should not be used on
+*                                          overnight processes
+      INCLUDE INCLUDES COMMON.SCREEN
+
+      MATREAD TERMWORK.REC FROM TERMWORK.FV,PORT ELSE
+         FATAL.ERROR.MSG = "CANNOT READ ":PORT:" FROM TERMWORK FILE"
+         GOSUB FATAL.ERROR
+      END
+
+********
+* ETC
+********
+
+      GET.OUT = ''
+      MODE = ''
+
+      RETURN
+
+**********************************************************************
+*************
+CLEAR.SCREEN:
+*************
+
+* Clear screen here if you need to
+      SP6 = SPACE(6)
+      SP30 = SPACE(30)
+      CALL TPCRT(20,10,SP6,'','','','','','')
+      CALL TPCRT(20,12,SP30,'','','','','','')
+
+      RETURN
+
+*********************************************************************
+************************
+READ.AND.DISPLAY.SCREEN:
+************************
+
+      SCREEN.NAME = "$":PROGRAM.NAME
+      READ SCREEN.1 FROM SCREENS.FV,SCREEN.NAME ELSE
+         FATAL.ERROR.MSG = "CANNOT READ ":SCREEN.NAME:" FROM SCREENS FILE"
+         GOSUB FATAL.ERROR
+      END
+
+      PART.SCREEN.NAME = "%":PROGRAM.NAME
+      READ SCREEN.1.PARTS FROM SCREENS.FV,PART.SCREEN.NAME ELSE
+         FATAL.ERROR.MSG = "CANNOT READ ":PART.SCREEN.NAME:" FROM SCREENS FILE"
+         GOSUB FATAL.ERROR
+      END
+
+      COMMON.SCREEN.NAME = "#":PROGRAM.NAME
+      READ SCREEN.1.COMMON FROM SCREENS.FV,COMMON.SCREEN.NAME ELSE
+         FATAL.ERROR.MSG = "CANNOT READ ":COMMON.SCREEN.NAME:" FROM SCREENS FILE"
+         GOSUB FATAL.ERROR
+      END
+
+* Don't use TPCRT to display the screen in the first place
+* Never use TPCRT to display TOP.RIGHT (it can't cope with embedded @(n,m))
+
+      CRT.VAR = SCREEN.1:@(1,0):EXT.TODAY:TOP.RIGHT
+      CRT CRT.VAR
+
+* Load uncompiled screen into SC.CURR so that TPREPAINT can use it later
+      SC.CURR = SCREEN.1.COMMON
+
+* NOTE
+* ----
+* If you ever use TPREPAINT to redisplay the whole screen (including row
+* zero), remember to CRT TOP.RIGHT afterwards
+
+* To redisplay a screen using TPREPAINT, call it like this :-
+*
+* VERSION   = "CURR"      ;* Not 'PREV'
+* Y.BIT     = "0-22"      ;* Rows to redisplay
+* X.BIT     = "0-79"      ;* Columns to redisplay
+* CLR.FIRST = "Y"         ;* To clear that bit of the screen first
+
+* BE CAREFUL!!!
+* TPREPAINT is expecting to see Y before X!!
+
+* DETAILS = VERSION : AM : Y.BIT : AM : X.BIT : AM : CLR.FIRST
+*
+* CALL TPREPAINT(DETAILS, SPARE3, SPARE2, SPARE1)
+
+      RETURN
+
+************************************************************************
+**********************
+SET.UP.SELECTION.LINE:
+**********************
+
+******************************
+* Set up line selection data *
+******************************
+
+      SEL.PROMPT = ''
+      CHOICE = ''
+      SEL.DELIM = CHAR(124)
+      ACTIVATE = 'Y'                     ; * To turn arrow keys on and off
+      SEL.POS = 1                        ; * Default option
+      SECONDARY.FORMAT = ''
+      SEL.POPUP.POS = ""
+      SEL.DISABLE = ""
+      SEL.NUMBER.POPUP = ""
+
+      SEL.WORDS = "File":VM:"Quit":VM:"Change":VM:"Delete":VM:"Line"
+      SEL.ABBRV = "F":VM:"Q":VM:"C":VM:"D":VM:"L"
+      SEL.RTNS = "FILE":VM:"QUIT":VM:"CHANGE":VM:"DELETE":VM:"LINE"
+      SEL.HELP = "Leave this screen saving any changes"
+      SEL.HELP<1,2> = "Ignore any changes made"
+      SEL.HELP<1,3> = "Amend details"
+      SEL.HELP<1,4> = "Delete customers details from file"
+      SEL.HELP<1,5> = "Amend a line"
+
+      NO.OF.LINES = 9                    ; *  set this to the last line on the screen
+      LOWER.RNG = 1
+      HIGHER.RNG = NO.OF.LINES
+      SEL.PROMPT<1,5> = "Enter Line Number To Amend : "
+      SEL.PROMPT<2,5> = "R#":LEN(HIGHER.RNG)
+      SEL.PROMPT<3,5> = ""
+      SEL.PROMPT<4,5> = "0N"
+      SEL.PROMPT<5,5> = 0
+      SEL.PROMPT<6,5> = 0
+      SEL.PROMPT<7,5> = "Enter Line Number In The Range ":LOWER.RNG:" To ":HIGHER.RNG
+      SEL.PROMPT<8,5> = LOWER.RNG:"*":HIGHER.RNG
+      SECONDARY.FORMAT<1,2> = ""
+
+      RETURN
+
+*********************************************************************
+***********
+GET.INPUTS:
+***********
+
+* if not in change mode, start from the first field (typically a key, e.g customer number)
+* if in change mode, the starting field can be set prior to coming
+* in to get inputs to allow amendment of the data fields
+
+      IF MODE # 'C' THEN FIELD.NO = 0
+
+      CTL = ''
+      END.OF.INPUTS = FALSE
+      LOOP UNTIL END.OF.INPUTS DO
+
+         BEGIN CASE
+            CASE CTL = '/'
+               IF FIELD.NO = 1 THEN
+                  FIELD.NO = 0
+                  INPUT.OK = TRUE
+                  GET.OUT = TRUE
+               END ELSE
+                  FIELD.NO = 1
+               END
+
+            CASE CTL = '<'
+               FIELD.NO = FIELD.NO - 1
+
+            CASE CTL = '.'
+               FIELD.NO = 999
+
+            CASE 1
+               FIELD.NO = FIELD.NO + 1
+         END CASE
+
+         CTL = ''
+
+         BEGIN CASE
+            CASE FIELD.NO = 0
+               END.OF.INPUTS = TRUE
+
+            CASE FIELD.NO = 1
+               GOSUB GET.INPUT.1
+
+            CASE 1
+*              GOSUB ???PROCESSING.SUBROUTINE??? ;* If required
+               END.OF.INPUTS = TRUE
+         END CASE
+
+      REPEAT
+
+      RETURN
+*********************************************************************
+*****************************
+DO.LINE.SELECTION.AND.ACTION:
+*****************************
+
+      INPUT.OK = FALSE
+      LOOP UNTIL INPUT.OK DO
+
+         CTL = ''
+
+******************
+* LINE.SELECTION *
+*********************************************************************
+* REMOVE AFTER PROGRAM COMPLETED                                         *
+* 1) xpos 2) ypos 3) option picked, 4) default option 5) words displayed *
+* 6) hot keys 7) returned response 8) help 9) delimiter 10) control      *
+* 11) timeout 12) control chars allowed 13) secondary input details      *
+* 14) activate arrow keys 15) format of secondary input 16) spare        *
+* 17) position of popups 18) disable flags 19) number the popups
+* 20)-26) spare
+*********************************************************************
+
+         CRT CURSOR.ON:
+         CALL LINE.SELECTION.2D(0,22,CHOICE,SEL.POS,SEL.WORDS,SEL.ABBRV,SEL.RTNS,SEL.HELP,SEL.DELIM,CTL,"","",SEL.PROMPT,ACTIVATE,SECONDARY.FORMAT,"",SEL.POPUP.POS,SEL.DISABLE,SEL.NUMBER.POPUP,"","","","","","","")
+         CRT CURSOR.OFF:
+
+         BEGIN CASE
+            CASE CHOICE = "FILE"
+               END.OF.INPUTS = TRUE
+               INPUT.OK = TRUE
+               FIELD.NO = 0
+               GET.OUT = TRUE
+
+            CASE CHOICE<1,1> = "LINE"
+               MODE = 'C'
+               FIELD.NO = CHOICE<1,2> - 1
+               GOSUB GET.INPUTS
+
+            CASE 1
+               CALL ERR("ERROR WITH LINE.SELECTION ...... <RTN>",'')
+         END CASE
+
+      REPEAT
+
+      RETURN
+
+*********************************************************************
+***************
+GET.INPUT.1:
+***************
+
+      INPUT.COMPLETE = FALSE
+
+      HELP = "Enter a customer code, @ to scan customers or enter to create a new customer"
+
+      LOOP UNTIL INPUT.COMPLETE DO
+         CTL = ''
+
+*****************
+* INP arguments *
+********************************************************************
+* REMOVE AFTER PROGRAM COMPLETED                                   *
+* 1) xpos 2) ypos 3) variable 4) length 5) display format(eg L#5') *
+* 6) validation(eg 'D2/') 7) validation(eg '6N') 8) madatory       *
+* 9) zero 10) negative 11) control 12) help 13) timeout            *
+********************************************************************
+
+         CRT CURSOR.ON:
+         CALL INP(19,5,CUSTOMER.CODE,'6','L#6','','6N',0,0,0,CTL,HELP,0)
+         CRT CURSOR.OFF:
+         BEGIN CASE
+            CASE CTL = "/"
+               INPUT.COMPLETE = TRUE
+               GET.OUT = TRUE
+
+            CASE CTL = "<"
+               INPUT.COMPLETE = TRUE
+
+            CASE CTL = "@"
+               INPUT.COMPLETE = TRUE
+               GOSUB DISPLAY.CUST.LIST
+
+            CASE CTL NE NULL
+               CALL ERR("Invalid Control","")
+
+            CASE CUSTOMER.CODE MATCHES '6N'
+               INPUT.COMPLETE = TRUE
+               MATREAD CUST.DETAIL.SMUSP.REC FROM CUST.DETAIL.SMUSP.FV, CUSTOMER.CODE THEN
+                  GOSUB DISPLAY.CUST.DETAILS
+               END ELSE
+                  CALL ERR(CUSTOMER.CODE:" DOES NOT EXIST","")
+                  CUSTOMER.CODE = ''
+               END
+
+            CASE CUSTOMER.CODE = ''
+               INPUT.COMPLETE = ''
+               GOSUB GET.NEW.CUST.ID
+               GOSUB ADD.CUST.DETAILS
+               GOSUB WRITE.NEW.CUST
+               GOSUB DO.LINE.SELECTION.AND.ACTION
+
+            CASE 1
+* Replace the following line with a meaningful error message (in capitals)
+               CALL ERR("ERROR MESSAGE","")
+               CUSTOMER.CODE = ''
+         END CASE
+
+      REPEAT
+
+* Change mode processing:
+* un-comment this if you want to only allow modification of this field in change mode.
+*
+* this is not normally needed because typically you would allow user to step through all
+* fields in change mode.
+*
+*      IF MODE = 'C' THEN
+*         FIELD.NO = 999
+*         CTL = ''
+*      END
+
+      RETURN
+
+***********************************************************************
+*********************
+DISPLAY.CUST.LIST:
+*********************
+
+      SCAN.LIST = ""
+      SCAN.LIST<1> = 'CUST-DETAIL-SMUSP'
+      SCAN.LIST<2> = 0
+      SCAN.LIST<3> = 0
+      SCAN.LIST<4> = ''
+      SCAN.LIST<5> = 'L#8'
+      SCAN.LIST<1,2> = ''
+      SCAN.LIST<2,2> = ''
+      SCAN.LIST<3,2> = 1
+      SCAN.LIST<4,2> = ''
+      SCAN.LIST<5,3> = 'L#40'
+
+      CALL DSPLY.SCAN.SORT.V2(20,4,CUSTOMER.CODE,SCAN.LIST,'',1,'ID      NAME',10,'',SY.PARAMS.FV,TERMWORK.FV,'','','','','')
+
+      RETURN
+
+***********************************************************************
+*********************
+DISPLAY.CUST.DETAILS:
+*********************
+
+      CALL TPCRT(19,7,CDSM.CUST.NAME,"","","","","","")
+      CALL TPCRT(19,9,CDSM.ADDR<1,1>,"","","","","","")
+      CALL TPCRT(19,10,CDSM.ADDR<1,2>,"","","","","","")
+      CALL TPCRT(19,11,CDSM.ADDR<1,3>,"","","","","","")
+      CALL TPCRT(19,12,CDSM.POSTCODE,"","","","","","")
+      CALL TPCRT(19,14,CDSM.TEL.NO,"","","","","","")
+      CALL TPCRT(19,16,CDSM.CRED.LIMIT,"","","","","","")
+      CALL TPCRT(19,18,CDSM.REP.CODE,"","","","","","")
+
+      RETURN
+
+***********************************************************************
+****************
+GET.NEW.CUST.ID:
+****************
+
+      READ NEXT.CUST.SMUSP.REC FROM TRAIN.PARAMS.FV, 'NEXT.CUST.SMUSP' THEN
+         CUSTOMER.CODE = NEXT.CUST.SMUSP.REC<1>
+      END
+      CALL ERR ('NEXT.CUST.SMUSP.REC<1> = ' : CUSTOMER.CODE, '')
+
+      RETURN
+
+***********************************************************************
+*********************
+ADD.CUST.DETAILS:
+*********************
+
+      CALL TPCRT(19,5,"*NEW*","","","","","","")
+      CRT CURSOR.ON:
+      MAT CUST.DETAIL.SMUSP.REC = ''
+
+      HELP = 'Please enter the customers name'
+      CALL INP(19,7,CDSM.CUST.NAME,'40','L#40','','',1,0,0,CTL,HELP,0)
+      HELP = 'Please enter the first line of the address'
+      CALL INP(19,9,CDSM.ADDR<1,1>,'40','L#40','','',1,0,0,CTL,HELP,0)
+      HELP = 'Please enter the second line of the address'
+      CALL INP(19,10,CDSM.ADDR<1,2>,'40','L#40','','',1,0,0,CTL,HELP,0)
+      HELP = 'Please enter the third line of the address'
+      CALL INP(19,11,CDSM.ADDR<1,3>,'40','L#40','','',1,0,0,CTL,HELP,0)
+      HELP = 'Please enter the postcode'
+      CALL INP(19,12,CDSM.POSTCODE,'10','L#10','','',1,0,0,CTL,HELP,0)
+      HELP = 'Please enter a telephone number'
+      CALL INP(19,14,CDSM.TEL.NO,'20','L#20','','',1,0,0,CTL,HELP,0)
+      HELP = 'Please enter the credit limit'
+      CALL INP(19,16,CDSM.CRED.LIMIT,'7','R#7','','',1,0,0,CTL,HELP,0)
+      HELP = 'Please enter a rep code'
+      CALL INP(19,18,CDSM.REP.CODE,'3','L#3','','',1,0,0,CTL,HELP,0)
+
+      CRT CURSOR.OFF:
+
+      RETURN
+
+***********************************************************************
+***************
+WRITE.NEW.CUST:
+***************
+
+      NEXT.CUST.SMUSP.REC<1> += 1
+      WRITE NEXT.CUST.SMUSP.REC TO TRAIN.PARAMS.FV, 'NEXT.CUST.SMUSP'
+      MATWRITE CUST.DETAIL.SMUSP.REC TO CUST.DETAIL.SMUSP.FV, CUSTOMER.CODE
+
+      RETURN
+
+*********************************************************************
+************
+FATAL.ERROR:
+************
+
+      CRT CURSOR.ON:
+      VAR = ''
+
+      VAR<1,1> = "V1"
+      VAR<1,2> = PROGRAM.NAME
+      VAR<1,3> = DATE()
+      VAR<1,4> = TIME()
+      VAR<1,5> = LOWER(SYSTEM(9001))
+      VAR<2> = FATAL.ERROR.MSG
+      VAR<-1> = "!"
+
+      DATA VAR
+      CHAIN "SY.FATAL.ERROR"
+
+      RETURN
+
+*********************************************************************
+      INCLUDE INCLUDES TRANS.BOUNDS
+*********************************************************************
+   END
+*********************************************************************
