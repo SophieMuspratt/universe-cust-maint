@@ -206,26 +206,25 @@ SET.UP.SELECTION.LINE:
       SEL.DISABLE = ""
       SEL.NUMBER.POPUP = ""
 
-      SEL.WORDS = "File":VM:"Quit":VM:"Change":VM:"Delete":VM:"Line"
-      SEL.ABBRV = "F":VM:"Q":VM:"C":VM:"D":VM:"L"
-      SEL.RTNS = "FILE":VM:"QUIT":VM:"CHANGE":VM:"DELETE":VM:"LINE"
+      SEL.WORDS = "File":VM:"Quit":VM:"Change":VM:"Delete"
+      SEL.ABBRV = "F":VM:"Q":VM:"C":VM:"D"
+      SEL.RTNS = "FILE":VM:"QUIT":VM:"CHANGE":VM:"DELETE"
       SEL.HELP = "Leave this screen saving any changes"
       SEL.HELP<1,2> = "Ignore any changes made"
       SEL.HELP<1,3> = "Amend details"
       SEL.HELP<1,4> = "Delete customers details from file"
-      SEL.HELP<1,5> = "Amend a line"
 
       NO.OF.LINES = 9                    ; *  set this to the last line on the screen
       LOWER.RNG = 1
       HIGHER.RNG = NO.OF.LINES
-      SEL.PROMPT<1,5> = "Enter Line Number To Amend : "
-      SEL.PROMPT<2,5> = "R#":LEN(HIGHER.RNG)
-      SEL.PROMPT<3,5> = ""
-      SEL.PROMPT<4,5> = "0N"
-      SEL.PROMPT<5,5> = 0
-      SEL.PROMPT<6,5> = 0
-      SEL.PROMPT<7,5> = "Enter Line Number In The Range ":LOWER.RNG:" To ":HIGHER.RNG
-      SEL.PROMPT<8,5> = LOWER.RNG:"*":HIGHER.RNG
+      SEL.PROMPT<1,3> = "Enter Line Number To Amend : "
+      SEL.PROMPT<2,3> = "R#":LEN(HIGHER.RNG)
+      SEL.PROMPT<3,3> = ""
+      SEL.PROMPT<4,3> = "0N"
+      SEL.PROMPT<5,3> = 0
+      SEL.PROMPT<6,3> = 0
+      SEL.PROMPT<7,3> = "Enter Line Number In The Range ":LOWER.RNG:" To ":HIGHER.RNG
+      SEL.PROMPT<8,3> = LOWER.RNG:"*":HIGHER.RNG
       SECONDARY.FORMAT<1,2> = ""
 
       RETURN
@@ -272,7 +271,23 @@ GET.INPUTS:
                END.OF.INPUTS = TRUE
 
             CASE FIELD.NO = 1
-               GOSUB GET.INPUT.1
+               GOSUB GET.CUST.CODE
+            CASE FIELD.NO = 2
+               GOSUB GET.CUST.NAME
+            CASE FIELD.NO = 3
+               GOSUB GET.CUST.ADDR1
+            CASE FIELD.NO = 4
+               GOSUB GET.CUST.ADDR2
+            CASE FIELD.NO = 5
+               GOSUB GET.CUST.ADDR3
+            CASE FIELD.NO = 6
+               GOSUB GET.CUST.POSTCODE
+            CASE FIELD.NO = 7
+               GOSUB GET.CUST.TEL
+            CASE FIELD.NO = 8
+               GOSUB GET.CUST.CRED.LIMIT
+            CASE FIELD.NO = 9
+               GOSUB GET.CUST.REP.CODE
 
             CASE 1
 *              GOSUB ???PROCESSING.SUBROUTINE??? ;* If required
@@ -314,8 +329,12 @@ DO.LINE.SELECTION.AND.ACTION:
                INPUT.OK = TRUE
                FIELD.NO = 0
                GET.OUT = TRUE
+               IF CUSTOMER.CODE = "" THEN
+                  GOSUB GET.NEW.CUST.ID
+               END
+               GOSUB WRITE.NEW.CUST
 
-            CASE CHOICE<1,1> = "LINE"
+            CASE CHOICE<1,1> = "CHANGE"
                MODE = 'C'
                FIELD.NO = CHOICE<1,2> - 1
                GOSUB GET.INPUTS
@@ -330,7 +349,7 @@ DO.LINE.SELECTION.AND.ACTION:
 
 *********************************************************************
 ***************
-GET.INPUT.1:
+GET.CUST.CODE:
 ***************
 
       INPUT.COMPLETE = FALSE
@@ -339,16 +358,6 @@ GET.INPUT.1:
 
       LOOP UNTIL INPUT.COMPLETE DO
          CTL = ''
-
-*****************
-* INP arguments *
-********************************************************************
-* REMOVE AFTER PROGRAM COMPLETED                                   *
-* 1) xpos 2) ypos 3) variable 4) length 5) display format(eg L#5') *
-* 6) validation(eg 'D2/') 7) validation(eg '6N') 8) madatory       *
-* 9) zero 10) negative 11) control 12) help 13) timeout            *
-********************************************************************
-
          CRT CURSOR.ON:
          CALL INP(19,5,CUSTOMER.CODE,'6','L#6','','6N',0,0,0,CTL,HELP,0)
          CRT CURSOR.OFF:
@@ -377,14 +386,11 @@ GET.INPUT.1:
                END
 
             CASE CUSTOMER.CODE = ''
-               INPUT.COMPLETE = ''
-               GOSUB GET.NEW.CUST.ID
+               INPUT.COMPLETE = TRUE
                GOSUB ADD.CUST.DETAILS
-               GOSUB WRITE.NEW.CUST
-               GOSUB DO.LINE.SELECTION.AND.ACTION
+               *    GOSUB DO.LINE.SELECTION.AND.ACTION
 
             CASE 1
-* Replace the following line with a meaningful error message (in capitals)
                CALL ERR("ERROR MESSAGE","")
                CUSTOMER.CODE = ''
          END CASE
@@ -455,31 +461,278 @@ GET.NEW.CUST.ID:
 
 ***********************************************************************
 *********************
+GET.CUST.NAME:
+*********************
+
+      INPUT.COMPLETE = FALSE
+
+      HELP = 'Please enter the customers name'
+
+      LOOP UNTIL INPUT.COMPLETE DO
+         CTL = ''
+         CRT CURSOR.ON:
+         CALL INP(19,7,CDSM.CUST.NAME,'40','L#40','','0X',1,0,0,CTL,HELP,0)
+         CRT CURSOR.OFF:
+         BEGIN CASE
+            CASE CTL = "/"
+               INPUT.COMPLETE = TRUE
+               GET.OUT = TRUE
+
+            CASE CTL = "<"
+               INPUT.COMPLETE = TRUE
+
+            CASE CTL NE NULL
+               CALL ERR("Invalid Control","")
+
+            CASE CDSM.CUST.NAME MATCHES '0X'
+               INPUT.COMPLETE = TRUE
+
+            CASE 1
+               CALL ERR("ERROR MESSAGE","")
+         END CASE
+
+      REPEAT
+      
+      RETURN
+
+***********************************************************************
+*********************
+GET.CUST.ADDR1:
+*********************
+
+      INPUT.COMPLETE = FALSE
+
+      HELP = 'Please enter the first line of the address'
+      LOOP UNTIL INPUT.COMPLETE DO
+         CTL = ''
+         CRT CURSOR.ON:
+         CALL INP(19,9,CDSM.ADDR<1,1>,'40','L#40','','0X',1,0,0,CTL,HELP,0)
+         CRT CURSOR.OFF:
+         BEGIN CASE
+            CASE CTL = "/"
+               INPUT.COMPLETE = TRUE
+               GET.OUT = TRUE
+
+            CASE CTL = "<"
+               INPUT.COMPLETE = TRUE
+
+            CASE CTL NE NULL
+               CALL ERR("Invalid Control","")
+
+            CASE CDSM.ADDR<1,1> MATCHES '0X'
+               INPUT.COMPLETE = TRUE
+
+            CASE 1
+               CALL ERR("ERROR MESSAGE","")
+         END CASE
+
+      REPEAT
+      RETURN
+***********************************************************************
+*********************
+GET.CUST.ADDR2:
+*********************
+
+      INPUT.COMPLETE = FALSE
+
+      HELP = 'Please enter the second line of the address' : CDSM.ADDR<1,1>
+
+      LOOP UNTIL INPUT.COMPLETE DO
+         CTL = ''
+         CRT CURSOR.ON:
+         CALL INP(19,10,CDSM.ADDR<1,2>,'40','L#40','','0X',1,0,0,CTL,HELP,0)
+         CRT CURSOR.OFF:
+         BEGIN CASE
+            CASE CTL = "/"
+               INPUT.COMPLETE = TRUE
+               GET.OUT = TRUE
+
+            CASE CTL = "<"
+               INPUT.COMPLETE = TRUE
+
+            CASE CTL NE NULL
+               CALL ERR("Invalid Control","")
+
+            CASE CDSM.ADDR<1,2> MATCHES '0X'
+               INPUT.COMPLETE = TRUE
+
+            CASE 1
+               CALL ERR("ERROR MESSAGE","")
+         END CASE
+      REPEAT
+      RETURN
+***********************************************************************
+*********************
+GET.CUST.ADDR3:
+*********************
+
+      INPUT.COMPLETE = FALSE
+
+      HELP = 'Please enter the third line of the address'
+
+      LOOP UNTIL INPUT.COMPLETE DO
+         CTL = ''
+         CRT CURSOR.ON:
+         CALL INP(19,11,CDSM.ADDR<1,3>,'40','L#40','','0X',1,0,0,CTL,HELP,0)
+         CRT CURSOR.OFF:
+         BEGIN CASE
+            CASE CTL = "/"
+               INPUT.COMPLETE = TRUE
+               GET.OUT = TRUE
+
+            CASE CTL = "<"
+               INPUT.COMPLETE = TRUE
+
+            CASE CTL NE NULL
+               CALL ERR("Invalid Control","")
+
+            CASE CDSM.ADDR<1,3> MATCHES '0X'
+               INPUT.COMPLETE = TRUE
+
+            CASE 1
+               CALL ERR("ERROR MESSAGE","")
+         END CASE
+      REPEAT
+      RETURN
+***********************************************************************
+*********************
+GET.CUST.POSTCODE:
+*********************
+
+      INPUT.COMPLETE = FALSE
+
+      HELP = 'Please enter the postcode'
+
+      LOOP UNTIL INPUT.COMPLETE DO
+         CTL = ''
+         CRT CURSOR.ON:
+         CALL INP(19,12,CDSM.POSTCODE,'10','L#10','','0X',1,0,0,CTL,HELP,0)
+         CRT CURSOR.OFF:
+         BEGIN CASE
+            CASE CTL = "/"
+               INPUT.COMPLETE = TRUE
+               GET.OUT = TRUE
+
+            CASE CTL = "<"
+               INPUT.COMPLETE = TRUE
+
+            CASE CTL NE NULL
+               CALL ERR("Invalid Control","")
+
+            CASE CDSM.POSTCODE MATCHES '0X'
+               INPUT.COMPLETE = TRUE
+
+            CASE 1
+               CALL ERR("ERROR MESSAGE","")
+         END CASE
+      REPEAT
+      RETURN
+***********************************************************************
+*********************
+GET.CUST.TEL:
+*********************
+
+      INPUT.COMPLETE = FALSE
+
+      HELP = 'Please enter a telephone number'
+
+      LOOP UNTIL INPUT.COMPLETE DO
+         CTL = ''
+         CRT CURSOR.ON:
+         CALL INP(19,14,CDSM.TEL.NO,'20','L#20','','0X',1,0,0,CTL,HELP,0)
+         CRT CURSOR.OFF:
+         BEGIN CASE
+            CASE CTL = "/"
+               INPUT.COMPLETE = TRUE
+               GET.OUT = TRUE
+
+            CASE CTL = "<"
+               INPUT.COMPLETE = TRUE
+
+            CASE CTL NE NULL
+               CALL ERR("Invalid Control","")
+
+            CASE CDSM.TEL.NO MATCHES '0X'
+               INPUT.COMPLETE = TRUE
+
+            CASE 1
+               CALL ERR("ERROR MESSAGE","")
+         END CASE
+      REPEAT
+      RETURN
+***********************************************************************
+*********************
+GET.CUST.CRED.LIMIT:
+*********************
+
+      INPUT.COMPLETE = FALSE
+
+      HELP = 'Please enter the credit limit'
+
+      LOOP UNTIL INPUT.COMPLETE DO
+         CTL = ''
+         CRT CURSOR.ON:
+         CALL INP(19,16,CDSM.CRED.LIMIT,'7','R#7','','0N',1,0,0,CTL,HELP,0)
+         CRT CURSOR.OFF:
+         BEGIN CASE
+            CASE CTL = "/"
+               INPUT.COMPLETE = TRUE
+               GET.OUT = TRUE
+
+            CASE CTL = "<"
+               INPUT.COMPLETE = TRUE
+
+            CASE CTL NE NULL
+               CALL ERR("Invalid Control","")
+
+            CASE CDSM.CRED.LIMIT MATCHES '0N'
+               INPUT.COMPLETE = TRUE
+
+            CASE 1
+               CALL ERR("ERROR MESSAGE","")
+         END CASE
+      REPEAT
+      RETURN
+***********************************************************************
+*********************
+GET.CUST.REP.CODE:
+*********************
+
+      INPUT.COMPLETE = FALSE
+
+      HELP = 'Please enter a rep code'
+
+      LOOP UNTIL INPUT.COMPLETE DO
+         CTL = ''
+         CRT CURSOR.ON:
+         CALL INP(19,18,CDSM.REP.CODE,'3','L#3','','3N',1,0,0,CTL,HELP,0)
+         CRT CURSOR.OFF:
+         BEGIN CASE
+            CASE CTL = "/"
+               INPUT.COMPLETE = TRUE
+               GET.OUT = TRUE
+
+            CASE CTL = "<"
+               INPUT.COMPLETE = TRUE
+
+            CASE CTL NE NULL
+               CALL ERR("Invalid Control","")
+
+            CASE CDSM.REP.CODE MATCHES '3N'
+               INPUT.COMPLETE = TRUE
+
+            CASE 1
+               CALL ERR("ERROR MESSAGE","")
+         END CASE
+      REPEAT
+      RETURN
+***********************************************************************
+*********************
 ADD.CUST.DETAILS:
 *********************
 
       CALL TPCRT(19,5,"*NEW*","","","","","","")
-      CRT CURSOR.ON:
       MAT CUST.DETAIL.SMUSP.REC = ''
-
-      HELP = 'Please enter the customers name'
-      CALL INP(19,7,CDSM.CUST.NAME,'40','L#40','','',1,0,0,CTL,HELP,0)
-      HELP = 'Please enter the first line of the address'
-      CALL INP(19,9,CDSM.ADDR<1,1>,'40','L#40','','',1,0,0,CTL,HELP,0)
-      HELP = 'Please enter the second line of the address'
-      CALL INP(19,10,CDSM.ADDR<1,2>,'40','L#40','','',1,0,0,CTL,HELP,0)
-      HELP = 'Please enter the third line of the address'
-      CALL INP(19,11,CDSM.ADDR<1,3>,'40','L#40','','',1,0,0,CTL,HELP,0)
-      HELP = 'Please enter the postcode'
-      CALL INP(19,12,CDSM.POSTCODE,'10','L#10','','',1,0,0,CTL,HELP,0)
-      HELP = 'Please enter a telephone number'
-      CALL INP(19,14,CDSM.TEL.NO,'20','L#20','','',1,0,0,CTL,HELP,0)
-      HELP = 'Please enter the credit limit'
-      CALL INP(19,16,CDSM.CRED.LIMIT,'7','R#7','','',1,0,0,CTL,HELP,0)
-      HELP = 'Please enter a rep code'
-      CALL INP(19,18,CDSM.REP.CODE,'3','L#3','','',1,0,0,CTL,HELP,0)
-
-      CRT CURSOR.OFF:
 
       RETURN
 
@@ -491,7 +744,7 @@ WRITE.NEW.CUST:
       NEXT.CUST.SMUSP.REC<1> += 1
       WRITE NEXT.CUST.SMUSP.REC TO TRAIN.PARAMS.FV, 'NEXT.CUST.SMUSP'
       MATWRITE CUST.DETAIL.SMUSP.REC TO CUST.DETAIL.SMUSP.FV, CUSTOMER.CODE
-
+      CALL ERR ('CUSTOMER ' : CUSTOMER.CODE : ' HAS BEEN SUCCESSFULLY FILED', '')
       RETURN
 
 *********************************************************************
