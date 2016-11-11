@@ -206,14 +206,15 @@ SET.UP.SELECTION.LINE:
       SEL.DISABLE = ""
       SEL.NUMBER.POPUP = ""
 
-      SEL.WORDS = "File":VM:"Quit":VM:"Change":VM:"Delete"
-      SEL.ABBRV = "F":VM:"Q":VM:"C":VM:"D"
-      SEL.RTNS = "FILE":VM:"QUIT":VM:"CHANGE":VM:"DELETE"
+      SEL.WORDS = "File":VM:"Quit":VM:"Change":VM:"Delete":VM:"Exit"
+      SEL.ABBRV = "F":VM:"Q":VM:"C":VM:"D":VM:"E"
+      SEL.RTNS = "FILE":VM:"QUIT":VM:"CHANGE":VM:"DELETE":VM:"EXIT"
       SEL.HELP = "Leave this screen saving any changes"
       SEL.HELP<1,2> = "Ignore any changes made"
       SEL.HELP<1,3> = "Amend details"
       SEL.HELP<1,4> = "Delete customers details from file"
-
+      SEL.HELP<1,5> = "Exit program"
+	  
       NO.OF.LINES = 9                    ; *  set this to the last line on the screen
       LOWER.RNG = 1
       HIGHER.RNG = NO.OF.LINES
@@ -338,6 +339,12 @@ DO.LINE.SELECTION.AND.ACTION:
                MODE = 'C'
                FIELD.NO = CHOICE<1,2> - 1
                GOSUB GET.INPUTS
+			   
+			CASE CHOICE<1,1> = "QUIT"
+			
+			CASE CHOICE<1,1> = "DELETE"
+			
+			CASE CHOICE<1,1> = "EXIT"
 
             CASE 1
                CALL ERR("ERROR WITH LINE.SELECTION ...... <RTN>",'')
