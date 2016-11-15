@@ -84,9 +84,6 @@ MAIN.PROG:
          GOSUB GET.INPUTS
 
          IF NOT(GET.OUT) THEN
-*           Use selection bar to offer the following options:-
-*           1) Amend a line (CALL ???.LINE)
-*           2)
             GOSUB DO.LINE.SELECTION.AND.ACTION
          END
       UNTIL GET.OUT DO
@@ -214,7 +211,7 @@ SET.UP.SELECTION.LINE:
       SEL.HELP<1,3> = "Amend details"
       SEL.HELP<1,4> = "Delete customers details from file"
       SEL.HELP<1,5> = "Exit program"
-	  
+      
       NO.OF.LINES = 9                    ; *  set this to the last line on the screen
       LOWER.RNG = 1
       HIGHER.RNG = NO.OF.LINES
@@ -339,12 +336,16 @@ DO.LINE.SELECTION.AND.ACTION:
                MODE = 'C'
                FIELD.NO = CHOICE<1,2> - 1
                GOSUB GET.INPUTS
-			   
-			CASE CHOICE<1,1> = "QUIT"
-			
-			CASE CHOICE<1,1> = "DELETE"
-			
-			CASE CHOICE<1,1> = "EXIT"
+               
+            CASE CHOICE<1,1> = "QUIT"
+               GOSUB MAIN.PROG
+               
+            CASE CHOICE<1,1> = "DELETE"
+               GOSUB DELETE.FILE
+               
+            CASE CHOICE<1,1> = "EXIT"
+               DISPLAY @(-1)
+               GOSUB PROG.END
 
             CASE 1
                CALL ERR("ERROR WITH LINE.SELECTION ...... <RTN>",'')
@@ -453,7 +454,17 @@ DISPLAY.CUST.DETAILS:
       CALL TPCRT(19,18,CDSM.REP.CODE,"","","","","","")
 
       RETURN
+      
+***********************************************************************
+*********************
+ADD.CUST.DETAILS:
+*********************
 
+      CALL TPCRT(19,5,"*NEW*","","","","","","")
+      MAT CUST.DETAIL.SMUSP.REC = ''
+
+      RETURN
+      
 ***********************************************************************
 ****************
 GET.NEW.CUST.ID:
@@ -499,7 +510,7 @@ GET.CUST.NAME:
          END CASE
 
       REPEAT
-      
+
       RETURN
 
 ***********************************************************************
@@ -733,15 +744,6 @@ GET.CUST.REP.CODE:
          END CASE
       REPEAT
       RETURN
-***********************************************************************
-*********************
-ADD.CUST.DETAILS:
-*********************
-
-      CALL TPCRT(19,5,"*NEW*","","","","","","")
-      MAT CUST.DETAIL.SMUSP.REC = ''
-
-      RETURN
 
 ***********************************************************************
 ***************
@@ -754,6 +756,19 @@ WRITE.NEW.CUST:
       CALL ERR ('CUSTOMER ' : CUSTOMER.CODE : ' HAS BEEN SUCCESSFULLY FILED', '')
       RETURN
 
+*********************************************************************
+************
+DELETE.FILE:
+************
+
+      MATREAD CUST.DETAIL.SMUSP.REC FROM CUST.DETAIL.SMUSP.FV, CUSTOMER.CODE THEN
+         DELETE CUST.DETAIL.SMUSP.FV, CUSTOMER.CODE
+         CALL ERR ('CUSTOMER ' : CUSTOMER.CODE : ' HAS BEEN SUCCESSFULLY DELETED', '')
+      END ELSE
+         CALL ERR ('CUSTOMER ' : CUSTOMER.CODE : ' HAS NOT BE FOUND', '')
+      END
+
+      RETURN
 *********************************************************************
 ************
 FATAL.ERROR:
